@@ -24,28 +24,37 @@ For example:
 - A regular user might only be able to view their profile and book a car.
 - An admin user can manage cars, bookings, and user accounts.
 
-## 🚀 Implementation Steps
+# 🚀 User Management Implementation
 
-## Create Users into Database
+This guide provides a structured approach to implementing user management in a Node.js application using TypeScript, MongoDB with Mongoose, Zod validation, and Express.
 
+## 📌 Steps Overview
 
-### Step 1: **Create a User Interface in TypeScript**
+1. [Create Users in Database](#create-users-in-database)
+2. [Fetching Users from Database](#fetching-users-from-database)
+3. [Fetching a Single User from Database](#fetching-single-user-from-database)
 
-Begin by defining a TypeScript interface for consistent and type-safe user data across the application. This structure ensures uniformity for user-related operations.
+---
+
+## Create Users in Database
+
+### Step 1: **Define User Interface in TypeScript**
+
+To ensure type safety and consistency, create a TypeScript interface for user data.
 
 ```typescript
 export type TCreateUser = {
   email: string;
   password: string;
   role: "user" | "admin";
-  status: "active" | "block";
+  status: "active" | "blocked";
   isDeleted: boolean;
 };
 ```
 
-### Step 2: **Define a Mongoose Schema and Model**
+### Step 2: **Define Mongoose Schema and Model**
 
-To store and manage user data in the database, define a Mongoose schema that mirrors the structure of the user interface.
+Use the TypeScript interface to define a Mongoose schema for storing user data in the MongoDB database.
 
 ```typescript
 import { model, Schema } from "mongoose";
@@ -53,40 +62,21 @@ import { TCreateUser } from "./user.interface";
 
 const userSchema = new Schema<TCreateUser>(
   {
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
-    },
-    status: {
-      type: String,
-      enum: ["active", "blocked"],
-      default: "active",
-    },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    status: { type: String, enum: ["active", "blocked"], default: "active" },
+    isDeleted: { type: Boolean, default: false },
   },
-  {
-    timestamps: true, 
-  }
+  { timestamps: true }
 );
+
 export const User = model<TCreateUser>("User", userSchema);
 ```
 
 ### Step 3: **Implement Zod Validation**
 
-To ensure the integrity of the data before interacting with the database, implement **Zod validation** for runtime checks. This prevents invalid or incomplete data from being processed.
+Validate incoming data before processing it using Zod for runtime validation.
 
 ```typescript
 import { z } from "zod";
@@ -102,9 +92,9 @@ const userValidationSchema = z.object({
 export const UserValidation = { userValidationSchema };
 ```
 
-### Step 4: **Create Controller**
+### Step 4: **Create Controller for User Registration**
 
-Controllers handle incoming requests and delegate tasks to services.
+Create a controller to handle the registration of new users.
 
 ```typescript
 import { RequestHandler } from "express";
@@ -114,24 +104,22 @@ import { UserServices } from "./user.service";
 
 const createUser: RequestHandler = catchAsync(async (req, res) => {
   const userData = await req?.body;
-
   const user = await UserServices.createUserIntoDB(userData);
 
   sendResponse(res, {
-    statusCode: httpStatus.CREATED,
+    statusCode: 201,
     success: true,
     message: "User registered successfully",
     data: user,
   });
 });
-export const UserControllers = {
-  createUser,
-};
+
+export const UserControllers = { createUser };
 ```
 
-### Step 5: **Create Service**
+### Step 5: **Create Service for User Registration**
 
-Services contain business logic and interact directly with the database.
+The service contains the logic to interact with the database and create the user.
 
 ```typescript
 import { TCreateUser } from "./user.interface";
@@ -142,18 +130,24 @@ const createUserIntoDB = async (userData: TCreateUser) => {
   return create;
 };
 
-export const UserServices = {
-  createUserIntoDB,
-};
+export const UserServices = { createUserIntoDB };
+```
+
+### Step 6: **Define Router for User Registration**
+
+Define the route for creating a new user.
+
+```typescript
+router.post("/create-user", UserControllers.createUser);
 ```
 
 ---
 
-## Fetching Users from the Database
+## Fetching Users from Database
 
-### Step 1: **Create Controller**
+### Step 1: **Create Controller to Fetch All Users**
 
-Controllers handle incoming requests and delegate tasks to services.
+This controller handles the request to fetch all users from the database.
 
 ```typescript
 import { RequestHandler } from "express";
@@ -165,21 +159,19 @@ const getAllUsersFromDB: RequestHandler = async (req, res) => {
   const users = await UserServices.getAllUsersFromDB();
 
   sendResponse(res, {
-    statusCode: httpStatus.OK,
+    statusCode: 200,
     success: true,
     message: "List of users",
     data: users,
   });
 };
 
-export const UserControllers = {
-  getAllUsersFromDB,
-};
+export const UserControllers = { getAllUsersFromDB };
 ```
 
-### Step 2: **Create Service**
+### Step 2: **Create Service to Fetch All Users**
 
-Services contain business logic and interact directly with the database.
+The service interacts with the database to fetch the users.
 
 ```typescript
 const getAllUsersFromDB = async () => {
@@ -187,9 +179,65 @@ const getAllUsersFromDB = async () => {
   return users;
 };
 
-export const UserServices = {
-  getAllUsersFromDB,
+export const UserServices = { getAllUsersFromDB };
+```
+
+### Step 3: **Define Router for Fetching All Users**
+
+Define the route to fetch all users.
+
+```typescript
+router.get("/users", UserControllers.getAllUsersFromDB);
+```
+
+---
+
+## Fetching a Single User from Database
+
+### Step 1: **Create Controller to Fetch a Single User**
+
+This controller handles the request to fetch a single user based on their `id`.
+
+```typescript
+import { RequestHandler } from "express";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import { UserServices } from "./user.service";
+
+const getSingleUserFromDB: RequestHandler = async (req, res) => {
+  const { id } = req.params;
+  const user = await UserServices.getSingleUserFromDB(id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "User details",
+    data: user,
+  });
 };
+
+export const UserControllers = { getSingleUserFromDB };
+```
+
+### Step 2: **Create Service to Fetch a Single User**
+
+The service retrieves a user by their `id`.
+
+```typescript
+const getSingleUserFromDB = async (id: string) => {
+  const user = await User.findById(id);
+  return user;
+};
+
+export const UserServices = { getSingleUserFromDB };
+```
+
+### Step 3: **Define Router for Fetching a Single User**
+
+Define the route to fetch a single user by `id`.
+
+```typescript
+router.get("/user/:id", UserControllers.getSingleUserFromDB);
 ```
 ## 🌟 Key Features
 
