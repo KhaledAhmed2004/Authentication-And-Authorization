@@ -26,6 +26,9 @@ For example:
 
 ## 🚀 Implementation Steps
 
+## Create Users into Database
+
+
 ### Step 1: **Create a User Interface in TypeScript**
 
 Begin by defining a TypeScript interface for consistent and type-safe user data across the application. This structure ensures uniformity for user-related operations.
@@ -38,7 +41,6 @@ export type TCreateUser = {
   status: "active" | "block";
   isDeleted: boolean;
 };
-
 ```
 
 ### Step 2: **Define a Mongoose Schema and Model**
@@ -80,7 +82,6 @@ const userSchema = new Schema<TCreateUser>(
   }
 );
 export const User = model<TCreateUser>("User", userSchema);
-
 ```
 
 ### Step 3: **Implement Zod Validation**
@@ -90,7 +91,7 @@ To ensure the integrity of the data before interacting with the database, implem
 ```typescript
 import { z } from "zod";
 
-const userValidactionSchema = z.object({
+const userValidationSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, "Password must be at least 8 characters long"),
   role: z.enum(["user", "admin"]).default("user"),
@@ -98,9 +99,98 @@ const userValidactionSchema = z.object({
   isDeleted: z.boolean().default(false),
 });
 
-export const UserValidaction = { userValidactionSchema };
+export const UserValidation = { userValidationSchema };
 ```
 
+### Step 4: **Create Controller**
+
+Controllers handle incoming requests and delegate tasks to services.
+
+```typescript
+import { RequestHandler } from "express";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import { UserServices } from "./user.service";
+
+const createUser: RequestHandler = catchAsync(async (req, res) => {
+  const userData = await req?.body;
+
+  const user = await UserServices.createUserIntoDB(userData);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "User registered successfully",
+    data: user,
+  });
+});
+export const UserControllers = {
+  createUser,
+};
+```
+
+### Step 5: **Create Service**
+
+Services contain business logic and interact directly with the database.
+
+```typescript
+import { TCreateUser } from "./user.interface";
+import { User } from "./user.model";
+
+const createUserIntoDB = async (userData: TCreateUser) => {
+  const create = await User.create(userData);
+  return create;
+};
+
+export const UserServices = {
+  createUserIntoDB,
+};
+```
+
+---
+
+## Fetching Users from the Database
+
+### Step 1: **Create Controller**
+
+Controllers handle incoming requests and delegate tasks to services.
+
+```typescript
+import { RequestHandler } from "express";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import { UserServices } from "./user.service";
+
+const getAllUsersFromDB: RequestHandler = async (req, res) => {
+  const users = await UserServices.getAllUsersFromDB();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "List of users",
+    data: users,
+  });
+};
+
+export const UserControllers = {
+  getAllUsersFromDB,
+};
+```
+
+### Step 2: **Create Service**
+
+Services contain business logic and interact directly with the database.
+
+```typescript
+const getAllUsersFromDB = async () => {
+  const users = await User.find();
+  return users;
+};
+
+export const UserServices = {
+  getAllUsersFromDB,
+};
+```
 ## 🌟 Key Features
 
 - **Role-Based Authorization**: Supports user roles (`user` and `admin`), allowing for flexible user access control.
