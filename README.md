@@ -30,13 +30,13 @@ This guide provides a structured approach to implementing user management in a N
 
 ## 📌 Steps Overview
 
-1. [Create Users in Database](#create-users-in-database)
-2. [Fetching Users from Database](#fetching-users-from-database)
-3. [Fetching a Single User from Database](#fetching-single-user-from-database)
+1. [Creating Users in the Database](#creating-users-in-the-database)
+2. [Fetching All Users](#fetching-all-users)
+3. [Fetching a Single User](#fetching-a-single-user)
+4. [Password Hashing with Mongoose](#password-hashing-with-mongoose)
+5. [Enhancing Password Security](#enhancing-password-security)
 
----
-
-## Create Users in Database
+## 1️⃣ **Creating Users in the Database**
 
 ### Step 1: **Define User Interface in TypeScript**
 
@@ -143,7 +143,8 @@ router.post("/create-user", UserControllers.createUser);
 
 ---
 
-## Fetching Users from Database
+## 2️⃣ **Fetching All Users from Database**
+
 
 ### Step 1: **Create Controller to Fetch All Users**
 
@@ -192,7 +193,7 @@ router.get("/users", UserControllers.getAllUsersFromDB);
 
 ---
 
-## Fetching a Single User from Database
+## 3️⃣ **Fetching a Single User from Database**
 
 ### Step 1: **Create Controller to Fetch a Single User**
 
@@ -300,9 +301,12 @@ userSchema.pre("save", async function (next) {
 
 ## 🌟 Key Features
 
-- **Role-Based Authorization**: Supports user roles (`user` and `admin`), allowing for flexible user access control.
 - **Mongoose Integration**: Easily integrates with MongoDB for managing user data.
 - **Zod Validation**: Ensures runtime validation of data to prevent invalid input.
+- - **Role-Based Authorization**: `user` and `admin` roles.
+- **Secure Password Handling**: Passwords are hashed before storage.
+- **Data Validation**: Zod ensures runtime validation.
+
 
 ## 🚧 Planned Enhancements
 
