@@ -239,6 +239,111 @@ Define the route to fetch a single user by `id`.
 ```typescript
 router.get("/user/:id", UserControllers.getSingleUserFromDB);
 ```
+
+# Step 2: Hashing Passwords Using Mongoose `pre` Hook Middleware
+
+Storing plain-text passwords in the database is a significant security risk. To mitigate this, passwords must be hashed before storage. Mongoose's `pre` hook middleware is a powerful tool to ensure passwords are securely hashed right before saving user documents to the database.
+
+### How It Works
+
+#### 1. **What is a Mongoose `pre` Hook?**
+A `pre` hook in Mongoose is middleware that runs before a specific action, such as saving (`save`) or validating a document. It is an excellent place to perform tasks like hashing a password because it allows you to modify the data before it is written to the database.
+
+#### 2. **Hashing a Password**
+Password hashing is the process of converting a password into a random string of characters using a one-way algorithm. The most commonly used library for this in Node.js is **bcrypt**.
+
+### Implementation Steps
+
+1. **Install `bcrypt`:**
+   ```bash
+   npm install bcrypt
+   ```
+
+2. **Define the User Schema:**
+   Create a schema for your users and specify a `password` field.
+
+3. **Use a `pre` Hook to Hash the Password:**
+   In the schema's `pre` hook for the `save` operation, hash the password before saving the document. Use bcrypt to ensure secure password storage.
+
+
+### Example Code
+
+```typescript
+import { model, Schema } from "mongoose";
+import { TCreateUser } from "./user.interface";
+import bcrypt from "bcrypt";
+import config from "../../config";
+
+// Define the user schema using the Mongoose Schema class
+const userSchema = new Schema<TCreateUser>(
+  {
+    firstName: {
+      type: String, // Specifies the data type for the field.
+      required: true, // Indicates that the field is mandatory.
+    },
+    lastName: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true, // Ensures no duplicate are stored in the database.
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["user", "admin"], // Restricts the value of the role field to either "user" or "admin".
+      default: "user", // Sets the default value of the role field to "user".
+    },
+    status: {
+      type: String,
+      enum: ["active", "blocked"],
+      default: "active",
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields to the schema.
+  }
+);
+
+// Pre-save middleware to hash the password
+userSchema.pre("save", async function (next) {
+  const user = this;
+
+  // hash the password before saving the user
+  user.password = await bcrypt.hash(
+    user.password,
+    Number(config.bcrypt_salt_round)
+  );
+  next();
+});
+
+// This model will be used to interact with the `users` collection in the database.
+export const User = model<TCreateUser>("User", userSchema);
+```
+### Key Points in the Code
+
+1. **`const user = this`:**
+  In this middleware, `this` refers to the current document being saved to the database. For example, if a new user is being created, this holds the new user’s data.
+
+2.**`const saltRounds = Number(config.bcrypt_salt_round);`**
+  Here, we define the number of "salt rounds" for bcrypt. A salt is a random string added to the password before hashing, making it more secure against attacks. The value of bcrypt_salt_round is retrieved from the config object.
+
+2. **`bcrypt.hash(this.password, salt)`:**
+   This hashes the password using the generated salt.
+
+3. **`next()`:**
+   After hashing the password, next() is called to signal that the middleware has completed its task and the save operation can continue.
+
+
 ## 🌟 Key Features
 
 - **Role-Based Authorization**: Supports user roles (`user` and `admin`), allowing for flexible user access control.
