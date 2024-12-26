@@ -240,7 +240,7 @@ Define the route to fetch a single user by `id`.
 router.get("/user/:id", UserControllers.getSingleUserFromDB);
 ```
 
-# Step 2: Hashing Passwords Using Mongoose `pre` Hook Middleware
+## Password Hashing Using Mongoose `pre` Hook
 
 Storing plain-text passwords in the database is a significant security risk. To mitigate this, passwords must be hashed before storage. Mongoose's `pre` hook middleware is a powerful tool to ensure passwords are securely hashed right before saving user documents to the database.
 
@@ -266,69 +266,23 @@ Password hashing is the process of converting a password into a random string of
    In the schema's `pre` hook for the `save` operation, hash the password before saving the document. Use bcrypt to ensure secure password storage.
 
 
-### Example Code
+2. Add a `pre` Hook to the User Schema:
 
 ```typescript
-import { model, Schema } from "mongoose";
-import { TCreateUser } from "./user.interface";
 import bcrypt from "bcrypt";
 import config from "../../config";
 
-// Define the user schema using the Mongoose Schema class
-const userSchema = new Schema<TCreateUser>(
-  {
-    firstName: {
-      type: String, // Specifies the data type for the field.
-      required: true, // Indicates that the field is mandatory.
-    },
-    lastName: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true, // Ensures no duplicate are stored in the database.
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    role: {
-      type: String,
-      enum: ["user", "admin"], // Restricts the value of the role field to either "user" or "admin".
-      default: "user", // Sets the default value of the role field to "user".
-    },
-    status: {
-      type: String,
-      enum: ["active", "blocked"],
-      default: "active",
-    },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  {
-    timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields to the schema.
-  }
-);
-
-// Pre-save middleware to hash the password
 userSchema.pre("save", async function (next) {
   const user = this;
 
-  // hash the password before saving the user
   user.password = await bcrypt.hash(
     user.password,
     Number(config.bcrypt_salt_round)
   );
   next();
 });
-
-// This model will be used to interact with the `users` collection in the database.
-export const User = model<TCreateUser>("User", userSchema);
 ```
+
 ### Key Points in the Code
 
 1. **`const user = this`:**
@@ -383,6 +337,4 @@ Follow these steps to set up the project:
    npm start
    ```
 
----
 
-This version is structured with easy-to-read sections, clear headings, and well-organized code snippets, making the README both visually appealing and informative.
