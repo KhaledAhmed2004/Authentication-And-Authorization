@@ -241,11 +241,10 @@ Define the route to fetch a single user by `id`.
 router.get("/user/:id", UserControllers.getSingleUserFromDB);
 ```
 
-## Password Hashing Using Mongoose `pre` Hook
+## 4️⃣  **Password Hashing Using Mongoose `pre` and `post` Hooks**
+Storing plain-text passwords in the database is a significant security risk. To mitigate this, we must hash the passwords before storing them. Mongoose's `pre` hook middleware is an excellent tool for securely hashing passwords just before saving user documents to the database.
 
-Storing plain-text passwords in the database is a significant security risk. To mitigate this, passwords must be hashed before storage. Mongoose's `pre` hook middleware is a powerful tool to ensure passwords are securely hashed right before saving user documents to the database.
-
-### How It Works
+### 🔐 **How It Works**
 
 #### 1. **What is a Mongoose `pre` Hook?**
 A `pre` hook in Mongoose is middleware that runs before a specific action, such as saving (`save`) or validating a document. It is an excellent place to perform tasks like hashing a password because it allows you to modify the data before it is written to the database.
@@ -253,50 +252,71 @@ A `pre` hook in Mongoose is middleware that runs before a specific action, such 
 #### 2. **Hashing a Password**
 Password hashing is the process of converting a password into a random string of characters using a one-way algorithm. The most commonly used library for this in Node.js is **bcrypt**.
 
-### Implementation Steps
+### 🛠 **Implementation Steps**
 
-1. **Install `bcrypt`:**
-   ```bash
-   npm install bcrypt
-   ```
+#### Step 1: **Install `bcrypt`**
+First, install the `bcrypt` library, which will be used to hash passwords.
 
-2. **Define the User Schema:**
-   Create a schema for your users and specify a `password` field.
+```bash
+npm install bcrypt
+```
 
-3. **Use a `pre` Hook to Hash the Password:**
-   In the schema's `pre` hook for the `save` operation, hash the password before saving the document. Use bcrypt to ensure secure password storage.
+#### Step 2:**Define the User Schema**
 
-
-2. Add a `pre` Hook to the User Schema:
+Create a Mongoose schema for your users and specify a `password` field. Below is an example schema:
 
 ```typescript
-import bcrypt from "bcrypt";
-import config from "../../config";
+import { Schema, model } from "mongoose";
 
-userSchema.pre("save", async function (next) {
-  const user = this;
-
-  user.password = await bcrypt.hash(
-    user.password,
-    Number(config.bcrypt_salt_round)
-  );
-  next();
+// User schema definition
+const userSchema = new Schema({
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  // other fields...
 });
 ```
 
-### Key Points in the Code
+#### Step 3: **Hash Password Using `pre` Hook**
 
-1. **`const user = this`:**
+In the schema's `pre` hook for the `save` operation, hash the password before saving the document. Use bcrypt to ensure secure password storage:
+
+```typescript
+// `pre` hook to hash the password before saving
+userSchema.pre("save", async function (next) {
+  const user = this;  // `this` refers to the current document
+
+  // Hash the password before saving
+  user.password = await bcrypt.hash(
+    user.password,
+    Number(config.bcrypt_salt_round) // Salt rounds from the config
+  );
+  next(); // Continue with the save operation
+});
+```
+- **`const user = this`:**
   In this middleware, `this` refers to the current document being saved to the database. For example, if a new user is being created, this holds the new user’s data.
+- **`user.password`**: Refers to the plain-text password entered by the user.
+- **`bcrypt.hash()`**: Hashes the password using the specified number of salt rounds (more rounds = more secure).
+- **`next()`**: After the password is hashed, `next()` is called to continue with the save operation.
 
-2.**`const saltRounds = Number(config.bcrypt_salt_round);`**
-  Here, we define the number of "salt rounds" for bcrypt. A salt is a random string added to the password before hashing, making it more secure against attacks. The value of bcrypt_salt_round is retrieved from the config object.
 
-2. **`bcrypt.hash(this.password, salt)`:**
-   This hashes the password using the generated salt.
 
-3. **`next()`:**
-   After hashing the password, next() is called to signal that the middleware has completed its task and the save operation can continue.
+
+
+
+### Step 4: **Clear Password in `post` Hook**
+
+After the password is hashed and saved to the database, we clear the password from the response to ensure it's never exposed in the API response.
+
+```typescript
+// `post` hook to clear password from the saved document before sending response
+userSchema.post("save", async function (doc, next) {
+  doc.password = "";  // Clear the password field in the saved document
+  next();  // Continue with the operation
+});
+```
+
+- **`doc.password = ""`**: Ensures that the hashed password is not included in the API response after saving the user.
 
 
 ## 🌟 Key Features
