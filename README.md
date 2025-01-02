@@ -24,6 +24,7 @@ For example:
 - A regular user might only be able to view their profile and book a car.
 - An admin user can manage cars, bookings, and user accounts.
 
+
 # 🚀 User Management Implementation
 
 This guide provides a structured approach to implementing user management in a Node.js application using TypeScript, MongoDB with Mongoose, Zod validation, and Express.
@@ -43,13 +44,26 @@ This guide provides a structured approach to implementing user management in a N
 To ensure type safety and consistency, create a TypeScript interface for user data.
 
 ```typescript
-export type TCreateUser = {
+import { Model } from "mongoose";
+
+export interface TCreateUser {
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   role: "user" | "admin";
-  status: "active" | "blocked";
+  status: "active" | "block";
   isDeleted: boolean;
-};
+}
+
+export interface UserModel extends Model<TCreateUser> {
+  isUserExistsByEmail(email: string): Promise<TCreateUser>;
+  isPasswordMatch(
+    plainTextPassword: string,
+    hashedPassword: string
+  ): Promise<boolean>;
+}
+
 ```
 
 ### Step 2: **Define Mongoose Schema and Model**
@@ -58,20 +72,79 @@ Use the TypeScript interface to define a Mongoose schema for storing user data i
 
 ```typescript
 import { model, Schema } from "mongoose";
-import { TCreateUser } from "./user.interface";
+import { TCreateUser, UserModel } from "./user.interface";
+import bcrypt from "bcrypt";
+import config from "../../config";
 
-const userSchema = new Schema<TCreateUser>(
+// Define the user schema using the Mongoose Schema class
+const userSchema = new Schema<TCreateUser, UserModel>(
   {
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
-    status: { type: String, enum: ["active", "blocked"], default: "active" },
-    isDeleted: { type: Boolean, default: false },
+    firstName: {
+      type: String, // Specifies the data type for the field.
+      required: true, // Indicates that the field is mandatory.
+    },
+    lastName: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true, // Ensures no duplicate are stored in the database.
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["user", "admin"], // Restricts the value of the role field to either "user" or "admin".
+      default: "user", // Sets the default value of the role field to "user".
+    },
+    status: {
+      type: String,
+      enum: ["active", "blocked"],
+      default: "active",
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields to the schema.
+  }
 );
 
-export const User = model<TCreateUser>("User", userSchema);
+userSchema.pre("save", async function (next) {
+  const user = this;
+  // hash the password before saving the user
+  user.password = await bcrypt.hash(
+    user.password,
+    Number(config.bcrypt_salt_round)
+  );
+  next();
+});
+
+userSchema.post("save", async function (doc, next) {
+  doc.password = "";
+  next();
+});
+
+userSchema.statics.isUserExistsByEmail = async function (email: string) {
+  return await User.findOne({ email });
+};
+
+userSchema.statics.isPasswordMatch = async function (
+  plainTextPassword: string,
+  hashedPassword: string
+) {
+  return await bcrypt.compare(plainTextPassword, hashedPassword);
+};
+
+// This model will be used to interact with the `users` collection in the database.
+export const User = model<TCreateUser, UserModel>("User", userSchema);
+
 ```
 
 ### Step 3: **Implement Zod Validation**
@@ -319,6 +392,72 @@ userSchema.post("save", async function (doc, next) {
 - **`doc.password = ""`**: Ensures that the hashed password is not included in the API response after saving the user.
 
 
+## 5️⃣ **Adding Static Methods to User Model**
+
+### **Update User Interface**
+
+Enhance the `TCreateUser` interface by adding a `UserModel` interface to include static methods.
+
+```typescript
+import { Model } from "mongoose";
+
+export interface TCreateUser {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  role: "user" | "admin";
+  status: "active" | "blocked";
+  isDeleted: boolean;
+}
+
+export interface UserModel extends Model<TCreateUser> {
+  isUserExistsByEmail(email: string): Promise<TCreateUser | null>;
+  isPasswordMatch(plainTextPassword: string, hashedPassword: string): Promise<boolean>;
+}
+```
+
+### **Implement Static Methods**
+
+Update the `user.model.ts` file to include the static methods.
+
+```typescript
+import { Schema, model } from "mongoose";
+import { TCreateUser, UserModel } from "./user.interface";
+import bcrypt from "bcrypt";
+import config from "../../config";
+
+const userSchema = new Schema<TCreateUser, UserModel>(
+  {
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    status: { type: String, enum: ["active", "blocked"], default: "active" },
+    isDeleted: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+// Static method to check if a user exists by email
+userSchema.statics.isUserExistsByEmail = async function (email: string): Promise<TCreateUser | null> {
+  return await this.findOne({ email }, { email: 1, password: 1 });
+};
+
+// Static method to compare plain-text password with hashed password
+userSchema.statics.isPasswordMatch = async function (plainTextPassword: string, hashedPassword: string): Promise<boolean> {
+  return await bcrypt.compare(plainTextPassword, hashedPassword);
+};
+
+export const User = model<TCreateUser, UserModel>("User", userSchema);
+```
+
+
+
+
+
+
 ## 🌟 Key Features
 
 - **Mongoose Integration**: Easily integrates with MongoDB for managing user data.
@@ -360,5 +499,3 @@ Follow these steps to set up the project:
    ```bash
    npm start
    ```
-
-
