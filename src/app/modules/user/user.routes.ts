@@ -20,6 +20,7 @@ router.get(
   auth(USER_ROLE.user),
   UserControllers.getSingleUserFromDB
 );
+
 router.post(
   "/change-status/:id",
   auth(USER_ROLE.admin),
