@@ -10,13 +10,17 @@ const app: Application = express(); // Initialize express app
 // Set up CORS to allow specific origins and headers
 app.use(
   cors({
-    origin: ["http://localhost:3000"], // Allow requests from these origins
+    origin: [
+      "http://localhost:3000",
+      "https://college-front-end-chi.vercel.app",
+    ], // Allow requests from these origins
     credentials: true, // Allow credentials (cookies, etc.)
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"], // Allow these HTTP methods
     allowedHeaders: ["Content-Type", "Authorization", "accessToken"], // Allowed headers
   })
 );
 
+app.use("/files", express.static("files"));
 app.use(express.json()); // Parse incoming JSON requests
 app.use(cookieParser()); // Parse cookies from requests
 
